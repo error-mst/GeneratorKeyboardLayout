@@ -1,6 +1,8 @@
 import numpy as np
 from numpy.typing import NDArray
 
+# Вычисляет ожидаемые расстояния
+from .evaluate import compute_expected_distance as score
 
 def optimize_distance():
     pass
@@ -8,21 +10,18 @@ def optimize_distance():
 def optimize_kbrd_layout(
         kbrd_layout:NDArray[np.int32],
         dist_matrix: NDArray[np.float32],
-        trans_weights_matrix: NDArray[np.float32],
-        n_iter: int = 15000,
+        trans_weights_matrix,
+        n_iter: int = 50000,
         temperature: float = 0.5,
         cool_rate: float = 0.9998,
         seed: int | None = None,
-) -> tuple[NDArray[np.float32], float]:
+) -> tuple[NDArray[np.int32], float]:
     rng = np.random.default_rng(seed)
 
-    def score(kbrd_layout: NDArray[np.int32]) -> float:
-        exp_dist_matrix = dist_matrix[np.ix_(kbrd_layout, kbrd_layout)]
-        return np.float32(np.sum(trans_weights_matrix * exp_dist_matrix))
-
     n = len(kbrd_layout)
+
     current = kbrd_layout
-    curr_score = score(current)
+    curr_score = score(current, dist_matrix, trans_weights_matrix)
     best = current
     best_score = curr_score
 
@@ -30,9 +29,10 @@ def optimize_kbrd_layout(
         i, j = np.random.choice(n, size=2, replace=False)
 
         candidate = current.copy()
+        # Меняю позиции м/у парой символов
         candidate[i], candidate[j] = candidate[j], candidate[i]
 
-        cand_score = score(candidate)
+        cand_score = score(candidate, dist_matrix, trans_weights_matrix)
         diff = cand_score - curr_score
 
         if diff < 0 or rng.random() < np.exp(-diff / max(temperature, 1e-12)):
@@ -44,4 +44,4 @@ def optimize_kbrd_layout(
                 best = current.copy()
         temperature *= cool_rate
 
-    return best, current_score
+    return best, best_score
